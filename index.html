@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>順德武林錄：研發少年的試煉之路 (展示版)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body {
+    background-color: #121214;
+    color: #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #1b1c22;
+    border-bottom: 2px solid #b8860b;
+    padding: 8px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    z-index: 10;
+  }
+  .title-group h1 { font-size: 16px; color: #ffd700; font-weight: bold; letter-spacing: 1px; }
+  .title-group p { font-size: 11px; color: #aaa; }
+  .stats-bar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-size: 13px;
+  }
+  .stat-badge {
+    background: #2a2b36;
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid #444;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .badge-val { color: #ffcc00; font-weight: bold; }
+  .hp-bar-wrap {
+    width: 80px;
+    height: 10px;
+    background: #441111;
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid #662222;
+  }
+  .hp-bar-fill {
+    width: 100%;
+    height: 100%;
+    background: #ff3344;
+    transition: width 0.2s;
+  }
+  #game-container {
+    flex: 1;
+    position: relative;
+    background: #000;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+  }
+  /* 地圖切換按鈕組 */
+  .map-switcher {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    display: flex;
+    gap: 6px;
+    z-index: 5;
+  }
+  .map-btn {
+    background: rgba(30, 32, 40, 0.85);
+    color: #bbb;
+    border: 1px solid #555;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: all 0.2s;
+  }
+  .map-btn.active {
+    background: #b8860b;
+    color: #fff;
+    font-weight: bold;
+    border-color: #ffd700;
+  }
+  /* 任務與通知 */
+  .quest-tracker {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(20, 22, 28, 0.85);
+    border: 1px solid #b8860b;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    max-width: 250px;
+    backdrop-filter: blur(4px);
+    z-index: 5;
+  }
+  .quest-title { color: #ffd700; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .quest-desc { color: #ddd; line-height: 1.4; }
+  /* 對話框 */
+  #dialog-box {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 600px;
+    background: rgba(24, 26, 34, 0.95);
+    border: 2px solid #b8860b;
+    border-radius: 8px;
+    padding: 14px 18px;
+    display: none;
+    z-index: 20;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+  }
+  #dialog-speaker { font-weight: bold; color: #ffd700; font-size: 14px; margin-bottom: 6px; }
+  #dialog-content { font-size: 13px; line-height: 1.5; color: #eee; margin-bottom: 10px; }
+  #dialog-close {
+    background: #b8860b;
+    border: none;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    float: right;
+    cursor: pointer;
+  }
+  /* 控制說明 */
+  .hud-instructions {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(0,0,0,0.6);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    color: #aaa;
+    z-index: 5;
+    pointer-events: none;
+  }
+  /* 觸控虛擬鍵盤 (行動端) */
+  .mobile-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: none;
+    grid-template-columns: repeat(3, 48px);
+    grid-template-rows: repeat(2, 48px);
+    gap: 8px;
+    z-index: 15;
+  }
+  .mobile-btn {
+    background: rgba(45, 50, 65, 0.8);
+    border: 1px solid #777;
+    border-radius: 8px;
+    color: white;
+    font-size: 18px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    touch-action: manipulation;
+  }
+  .mobile-btn:active { background: #b8860b; }
+  .atk-btn {
+    position: absolute;
+    bottom: 25px;
+    left: 25px;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #992222;
+    border: 2px solid #ff4444;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 15;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  }
+  .atk-btn:active { background: #cc3333; transform: scale(0.95); }
+  @media (max-width: 768px) {
+    .mobile-controls, .atk-btn { display: grid; }
+    .hud-instructions { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-group">
+    <h1>⚔️ 《順德武林錄》研發少年的試煉</h1>
+    <p>獨立單檔試玩版・點擊或方向鍵自由移動探索</p>
+  </div>
+  <div class="stats-bar">
+    <div class="stat-badge">
+      <span>階級:</span>
+      <span class="badge-val" id="player-rank">初階助理</span>
+    </div>
+    <div class="stat-badge">
+      <span>精力:</span>
+      <div class="hp-bar-wrap"><div class="hp-bar-fill" id="player-hp-bar"></div></div>
+      <span class="badge-val" id="player-hp-txt">100/100</span>
+    </div>
+    <div class="stat-badge">
+      <span>EXP:</span>
+      <span class="badge-val" id="player-exp">0</span>
+    </div>
+  </div>
+</header>
+
+<div id="game-container">
+  <div class="map-switcher">
+    <button class="map-btn active" onclick="switchMap('shunde')">1. 順德研發社</button>
+    <button class="map-btn" onclick="switchMap('taiwan')">2. 台灣區試煉</button>
+    <button class="map-btn" onclick="switchMap('mainland')">3. 大陸遠征</button>
+  </div>
+
+  <div class="quest-tracker">
+    <div class="quest-title">
+      <span>當前試煉歷程</span>
+      <span id="target-realm">堂口修煉</span>
+    </div>
+    <div class="quest-desc" id="quest-text">拜見四大長老（研發工程師、經理、處長、協理），習得模具與尺寸心法，準備挑戰外部客戶。</div>
+  </div>
+
+  <div id="dialog-box">
+    <div id="dialog-speaker">長老名號</div>
+    <div id="dialog-content">對話內容...</div>
+    <button id="dialog-close" onclick="closeDialog()">領命 / 關閉</button>
+  </div>
+
+  <div class="hud-instructions">
+    移動: [WASD] 或 [方向鍵] 或 畫面點擊尋路 | 攻擊/互動: [空白鍵 / J] | 靠近人物自動或按空白互動
+  </div>
+
+  <div class="atk-btn" id="btn-atk" onclick="playerAttack()">⚔️ 攻擊</div>
+  <div class="mobile-controls">
+    <div></div>
+    <div class="mobile-btn" onpointerdown="startMove('up')" onpointerup="stopMove()">▲</div>
+    <div></div>
+    <div class="mobile-btn" onpointerdown="startMove('left')" onpointerup="stopMove()">◀</div>
+    <div class="mobile-btn" onpointerdown="startMove('down')" onpointerup="stopMove()">▼</div>
+    <div class="mobile-btn" onpointerdown="startMove('right')" onpointerup="stopMove()">▶</div>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width = canvas.parentElement.clientWidth;
+  canvas.height = canvas.parentElement.clientHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// 玩家數據
+const player = {
+  x: 200,
+  y: 300,
+  targetX: 200,
+  targetY: 300,
+  speed: 3.5,
+  size: 16,
+  hp: 100,
+  maxHp: 100,
+  exp: 0,
+  rank: '初階助理',
+  facing: 'down',
+  isAttacking: false,
+  attackTimer: 0
+};
+
+let currentMap = 'shunde';
+let camera = { x: 0, y: 0 };
+let moveKey = { up: false, down: false, left: false, right: false };
+
+// 浮動傷害字體
+let floatingTexts = [];
+
+// 地圖定義與 NPC / 怪物
+const MAP_CONFIGS = {
+  shunde: {
+    name: '順德工業 - 研發社堂口',
+    realm: '堂口修煉',
+    quest: '靠近四大長老按 [空白鍵] 或點擊對話，領取打樣任務。亦可於修煉區擊打測試樁！',
+    bg: '#1e242b',
+    gridColor: '#28323d',
+    portal: { x: 750, y: 300, to: 'taiwan', label: '踏出山門 (前往台灣地圖)' },
+    npcs: [
+      { id: 'eng', name: '研發工程師 (傳功長老)', x: 180, y: 150, color: '#4da6ff', title: '【傳功長老】',
+        dialog: '「初階助理，朝夕苦練方成大器。先看懂這張沖壓精密圖紙秘笈，樣品公差控制在 0.01mm 內再來回報！」' },
+      { id: 'mgr', name: '研發經理 (執法長老)', x: 420, y: 140, color: '#e67300', title: '【執法長老】',
+        dialog: '「進度掌控是研發生命線！良率為何掉到92%？時程拷問之下，莫找任何藉口，快去找工程師校正模具！」' },
+      { id: 'dir', name: '研發處長 (鎮堂長老)', x: 580, y: 180, color: '#bf40bf', title: '【鎮堂長老】',
+        dialog: '「外部客戶五大門派步步進逼，台灣區的光寶大魔王更是規格嚴苛。你必須突破核心痛點，我自會調度資源護你！」' },
+      { id: 'vp', name: '研發協理 (太上長老)', x: 380, y: 60, color: '#ffcc00', title: '【太上長老】',
+        dialog: '「順德技術立派數十年。三年歷練，唯有耐得住寂寞與高溫淬鍊之人，方能遠征大陸、獨當一面！」' }
+    ],
+    monsters: [
+      { id: 'dummy1', name: '尺寸公差樁', x: 220, y: 460, hp: 60, maxHp: 60, color: '#a08060', exp: 10, isDummy: true },
+      { id: 'dummy2', name: '毛邊測試樁', x: 400, y: 460, hp: 80, maxHp: 80, color: '#a08060', exp: 15, isDummy: true }
+    ]
+  },
+  taiwan: {
+    name: '台灣區試煉副本群',
+    realm: '台灣客戶群',
+    quest: '擊破細格、捷康、長電與日月光，最終在東北角討伐【光寶大魔王】！',
+    bg: '#1a2621',
+    gridColor: '#243830',
+    portal: { x: 780, y: 100, to: 'mainland', label: '遠征通關令 (前往大陸地圖)' },
+    npcs: [],
+    monsters: [
+      { id: 'm1', name: '細格小卒', x: 180, y: 220, hp: 120, maxHp: 120, color: '#44aa77', exp: 25 },
+      { id: 'm2', name: '捷康快刀手', x: 260, y: 420, hp: 150, maxHp: 150, color: '#55bb99', exp: 35 },
+      { id: 'm3', name: '長電金剛', x: 450, y: 350, hp: 220, maxHp: 220, color: '#999944', exp: 50 },
+      { id: 'm4', name: '日月光陣法師', x: 520, y: 200, hp: 300, maxHp: 300, color: '#bb6633', exp: 70 },
+      { id: 'boss1', name: '【光寶大魔王】', x: 680, y: 240, hp: 1200, maxHp: 1200, color: '#ff2244', exp: 300, isBoss: true }
+    ]
+  },
+  mainland: {
+    name: '大陸三年遠征副本群',
+    realm: '遠征三年期',
+    quest: '迎戰天津光寶、上海凱虹、上海AOI真視之眼與四川達爾巨獸！',
+    bg: '#2b1e22',
+    gridColor: '#3d2830',
+    portal: { x: 50, y: 300, to: 'shunde', label: '凱旋歸宗 (回到研發社)' },
+    npcs: [],
+    monsters: [
+      { id: 'mb1', name: '北方・天津光寶', x: 250, y: 160, hp: 600, maxHp: 600, color: '#ff6644', exp: 120 },
+      { id: 'mb2', name: '魔都・上海凱虹', x: 560, y: 180, hp: 550, maxHp: 550, color: '#ff44aa', exp: 130 },
+      { id: 'mb3', name: '視覺結界・上海AOI', x: 280, y: 420, hp: 700, maxHp: 700, color: '#00ddff', exp: 150 },
+      { id: 'mb4', name: '西南巴蜀・四川達爾', x: 620, y: 420, hp: 950, maxHp: 950, color: '#aa33ff', exp: 200, isBoss: true }
+    ]
+  }
+};
+
+function switchMap(mapKey) {
+  currentMap = mapKey;
+  const cfg = MAP_CONFIGS[mapKey];
+  document.querySelectorAll('.map-btn').forEach((b, idx) => {
+    b.classList.toggle('active', (idx === 0 && mapKey === 'shunde') || (idx === 1 && mapKey === 'taiwan') || (idx === 2 && mapKey === 'mainland'));
+  });
+  document.getElementById('target-realm').innerText = cfg.realm;
+  document.getElementById('quest-text').innerText = cfg.quest;
+  player.x = 100;
+  player.y = 300;
+  player.targetX = 100;
+  player.targetY = 300;
+  closeDialog();
+}
+
+// 鍵盤監聽
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyW' || e.code === 'ArrowUp') moveKey.up = true;
+  if (e.code === 'KeyS' || e.code === 'ArrowDown') moveKey.down = true;
+  if (e.code === 'KeyA' || e.code === 'ArrowLeft') moveKey.left = true;
+  if (e.code === 'KeyD' || e.code === 'ArrowRight') moveKey.right = true;
+  if (e.code === 'Space' || e.code === 'KeyJ') {
+    e.preventDefault();
+    handleInteractOrAttack();
+  }
+});
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'KeyW' || e.code === 'ArrowUp') moveKey.up = false;
+  if (e.code === 'KeyS' || e.code === 'ArrowDown') moveKey.down = false;
+  if (e.code === 'KeyA' || e.code === 'ArrowLeft') moveKey.left = false;
+  if (e.code === 'KeyD' || e.code === 'ArrowRight') moveKey.right = false;
+});
+
+// 畫布點擊尋路與點擊長老
+canvas.addEventListener('pointerdown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const clickWorldX = e.clientX - rect.left + camera.x;
+  const clickWorldY = e.clientY - rect.top + camera.y;
+
+  // 檢查是否點擊 NPC
+  const cfg = MAP_CONFIGS[currentMap];
+  if (cfg.npcs) {
+    for (const npc of cfg.npcs) {
+      const d = Math.hypot(npc.x - clickWorldX, npc.y - clickWorldY);
+      if (d < 30) {
+        showDialog(npc.title + ' ' + npc.name, npc.dialog);
+        return;
+      }
+    }
+  }
+
+  // 否則為尋路
+  player.targetX = clickWorldX;
+  player.targetY = clickWorldY;
+});
+
+function startMove(dir) {
+  moveKey[dir] = true;
+}
+function stopMove() {
+  moveKey.up = moveKey.down = moveKey.left = moveKey.right = false;
+}
+
+function handleInteractOrAttack() {
+  const cfg = MAP_CONFIGS[currentMap];
+  // 優先檢查長老對話
+  if (cfg.npcs) {
+    for (const npc of cfg.npcs) {
+      const d = Math.hypot(npc.x - player.x, npc.y - player.y);
+      if (d < 50) {
+        showDialog(npc.title + ' ' + npc.name, npc.dialog);
+        player.exp += 5;
+        checkRank();
+        return;
+      }
+    }
+  }
+  // 執行出招攻擊
+  playerAttack();
+}
+
+function playerAttack() {
+  player.isAttacking = true;
+  player.attackTimer = 12;
+  const cfg = MAP_CONFIGS[currentMap];
+  if (cfg.monsters) {
+    let hitAny = false;
+    cfg.monsters.forEach(m => {
+      if (m.hp <= 0) return;
+      const d = Math.hypot(m.x - player.x, m.y - player.y);
+      if (d < 55) {
+        hitAny = true;
+        const dmg = Math.floor(25 + Math.random() * 20);
+        m.hp = Math.max(0, m.hp - dmg);
+        floatingTexts.push({ x: m.x, y: m.y - 15, text: `-${dmg}`, color: '#ff3333', life: 30 });
+
+        if (m.hp === 0) {
+          player.exp += m.exp;
+          floatingTexts.push({ x: m.x, y: m.y - 35, text: `+${m.exp} EXP`, color: '#ffd700', life: 40 });
+          checkRank();
+          setTimeout(() => {
+            m.hp = m.maxHp; // 怪物重生機制
+            floatingTexts.push({ x: m.x, y: m.y - 20, text: '重整旗鼓 (重生)', color: '#88ff88', life: 30 });
+          }, 4000);
+        }
+      }
+    });
+    if (!hitAny) {
+      floatingTexts.push({ x: player.x, y: player.y - 25, text: '精密揮尺 (空揮)', color: '#aaaaaa', life: 20 });
+    }
+  }
+}
+
+function checkRank() {
+  document.getElementById('player-exp').innerText = player.exp;
+  if (player.exp >= 500) player.rank = '研發副理';
+  else if (player.exp >= 250) player.rank = '資深研發工程師';
+  else if (player.exp >= 100) player.rank = '研發工程師';
+  else if (player.exp >= 30) player.rank = '中階助理';
+  document.getElementById('player-rank').innerText = player.rank;
+}
+
+function showDialog(speaker, text) {
+  document.getElementById('dialog-speaker').innerText = speaker;
+  document.getElementById('dialog-content').innerText = text;
+  document.getElementById('dialog-box').style.display = 'block';
+}
+function closeDialog() {
+  document.getElementById('dialog-box').style.display = 'none';
+}
+
+// 主循環
+function gameLoop() {
+  update();
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+function update() {
+  // 鍵盤移動
+  let dx = 0;
+  let dy = 0;
+  if (moveKey.up) dy -= 1;
+  if (moveKey.down) dy += 1;
+  if (moveKey.left) dx -= 1;
+  if (moveKey.right) dx += 1;
+
+  if (dx !== 0 || dy !== 0) {
+    const len = Math.hypot(dx, dy);
+    player.x += (dx / len) * player.speed;
+    player.y += (dy / len) * player.speed;
+    player.targetX = player.x;
+    player.targetY = player.y;
+    if (dx > 0) player.facing = 'right';
+    if (dx < 0) player.facing = 'left';
+    if (dy > 0) player.facing = 'down';
+    if (dy < 0) player.facing = 'up';
+  } else {
+    // 點擊移動
+    const dist = Math.hypot(player.targetX - player.x, player.targetY - player.y);
+    if (dist > 4) {
+      player.x += ((player.targetX - player.x) / dist) * player.speed;
+      player.y += ((player.targetY - player.y) / dist) * player.speed;
+    }
+  }
+
+  // 傳送點檢測
+  const cfg = MAP_CONFIGS[currentMap];
+  if (cfg.portal) {
+    const dPortal = Math.hypot(cfg.portal.x - player.x, cfg.portal.y - player.y);
+    if (dPortal < 30) {
+      switchMap(cfg.portal.to);
+    }
+  }
+
+  // 攻擊計時
+  if (player.attackTimer > 0) player.attackTimer--;
+  else player.isAttacking = false;
+
+  // 浮動文字更新
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    floatingTexts[i].y -= 0.8;
+    floatingTexts[i].life--;
+    if (floatingTexts[i].life <= 0) floatingTexts.splice(i, 1);
+  }
+
+  // 鏡頭鎖定
+  camera.x = player.x - canvas.width / 2;
+  camera.y = player.y - canvas.height / 2;
+}
+
+function render() {
+  const cfg = MAP_CONFIGS[currentMap];
+  ctx.save();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 繪製背景與網格
+  ctx.fillStyle = cfg.bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.translate(-camera.x, -camera.y);
+
+  // 地圖網格線
+  ctx.strokeStyle = cfg.gridColor;
+  ctx.lineWidth = 1;
+  const startX = Math.floor(camera.x / 60) * 60;
+  const endX = startX + canvas.width + 120;
+  const startY = Math.floor(camera.y / 60) * 60;
+  const endY = startY + canvas.height + 120;
+  for (let x = startX; x < endX; x += 60) {
+    ctx.beginPath(); ctx.moveTo(x, startY); ctx.lineTo(x, endY); ctx.stroke();
+  }
+  for (let y = startY; y < endY; y += 60) {
+    ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke();
+  }
+
+  // 傳送陣
+  if (cfg.portal) {
+    ctx.save();
+    ctx.strokeStyle = '#44ffaa';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cfg.portal.x, cfg.portal.y, 24, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(68, 255, 170, 0.2)';
+    ctx.fill();
+
+    ctx.fillStyle = '#44ffaa';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(cfg.portal.label, cfg.portal.x, cfg.portal.y - 32);
+    ctx.restore();
+  }
+
+  // NPC 渲染
+  if (cfg.npcs) {
+    cfg.npcs.forEach(npc => {
+      ctx.fillStyle = npc.color;
+      ctx.beginPath();
+      ctx.arc(npc.x, npc.y, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 頭頂名稱與驚嘆號
+      ctx.fillStyle = '#ffd700';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(npc.name, npc.x, npc.y - 24);
+
+      ctx.fillStyle = '#ff3344';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillText('!', npc.x, npc.y - 38);
+    });
+  }
+
+  // 怪物渲染
+  if (cfg.monsters) {
+    cfg.monsters.forEach(m => {
+      if (m.hp <= 0) return;
+      const radius = m.isBoss ? 28 : (m.isDummy ? 14 : 18);
+      ctx.fillStyle = m.color;
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = m.isBoss ? '#ffff00' : '#222';
+      ctx.lineWidth = m.isBoss ? 3 : 2;
+      ctx.stroke();
+
+      // 血條
+      const barW = radius * 2.2;
+      ctx.fillStyle = '#331111';
+      ctx.fillRect(m.x - barW / 2, m.y - radius - 16, barW, 6);
+      ctx.fillStyle = '#ff2233';
+      ctx.fillRect(m.x - barW / 2, m.y - radius - 16, barW * (m.hp / m.maxHp), 6);
+
+      // 名稱
+      ctx.fillStyle = m.isBoss ? '#ff4444' : '#ffffff';
+      ctx.font = m.isBoss ? 'bold 13px sans-serif' : '11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(m.name, m.x, m.y - radius - 20);
+    });
+  }
+
+  // 研發少年主角渲染
+  ctx.save();
+  ctx.fillStyle = '#33ccff';
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 攻擊光弧
+  if (player.isAttacking) {
+    ctx.strokeStyle = 'rgba(255, 230, 80, 0.8)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 45, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // 稱號與名字
+  ctx.fillStyle = '#00ffff';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`【${player.rank}】研發少年`, player.x, player.y - 22);
+  ctx.restore();
+
+  // 浮動傷害/經驗字體
+  floatingTexts.forEach(ft => {
+    ctx.fillStyle = ft.color;
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(ft.text, ft.x, ft.y);
+  });
+
+  ctx.restore();
+}
+
+gameLoop();
+</script>
+</body>
+</html>
